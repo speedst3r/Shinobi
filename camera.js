@@ -592,6 +592,7 @@ s.ffmpeg=function(e,x){
     x.cust_detect=' '
     x.record_video_filters=[]
     x.stream_video_filters=[]
+    x.hwaccel=''
     //input - analyze duration
     if(e.details.aduration&&e.details.aduration!==''){x.cust_input+=' -analyzeduration '+e.details.aduration};
     //input - probe size
@@ -763,6 +764,7 @@ s.ffmpeg=function(e,x){
     }else{
         x.stream_video_filters=''
     }
+
     //stream - hls vcodec
     if(e.details.stream_vcodec&&e.details.stream_vcodec!=='no'){
         if(e.details.stream_vcodec!==''){x.stream_vcodec=' -c:v '+e.details.stream_vcodec}else{x.stream_vcodec='libx264'}
@@ -784,13 +786,28 @@ s.ffmpeg=function(e,x){
     if(e.details.preset_stream&&e.details.preset_stream!==''){x.preset_stream=' -preset '+e.details.preset_stream;}else{x.preset_stream=''}
     //stream - quality
     if(e.details.stream_quality&&e.details.stream_quality!==''){x.stream_quality=e.details.stream_quality}else{x.stream_quality=''}
+
+    if(e.details.stream_vcodec!==''&&e.details.stream_vcodec=='h264_vaapi') {
+	// set the hwaccel options. TODO - detect proper render device
+	x.hwaccel=' -hwaccel vaapi -vaapi_device /dev/dri/renderD128 -hwaccel_output_format vaapi ';
+	x.stream_video_filters='-vf format=nv12|vaapi';
+
+	if(e.details.stream_scale_x&&e.details.stream_scale_x!==''&&e.details.stream_scale_y&&e.details.stream_scale_y!==''){
+		x.stream_video_filters=x.stream_video_filters+',scale_vaapi=w='+e.details.stream_scale_x+':h='+e.details.stream_scale_y;
+	}
+    }
+
     //stream - pipe build
     switch(e.details.stream_type){
         case'hls':
-            if(x.cust_stream.indexOf('-tune')===-1){x.cust_stream+=' -tune zerolatency'}
-            if(x.cust_stream.indexOf('-g ')===-1){x.cust_stream+=' -g 1'}
-            if(x.stream_quality)x.stream_quality=' -crf '+x.stream_quality;
-            x.pipe=x.preset_stream+x.stream_quality+x.stream_acodec+x.stream_vcodec+x.stream_fps+' -f hls -s '+x.ratio+x.stream_video_filters+x.cust_stream+' -hls_time '+x.hls_time+' -hls_list_size '+x.hls_list_size+' -start_number 0 -hls_allow_cache 0 -hls_flags +delete_segments+omit_endlist '+e.sdir+'s.m3u8';
+	    if(e.details.stream_vcodec=='h264_vaapi'){
+		x.pipe=x.preset_stream+x.stream_quality+x.stream_acodec+x.stream_vcodec+x.stream_fps+' -f hls '+x.stream_video_filters+' -hls_time '+x.hls_time+' -hls_list_size '+x.hls_list_size+' -start_number 0 -hls_allow_cache 0 -hls_flags +delete_segments+omit_endlist '+e.sdir+'s.m3u8';
+	    } else {
+        	if(x.cust_stream.indexOf('-tune')===-1){x.cust_stream+=' -tune zerolatency'}
+        	if(x.cust_stream.indexOf('-g ')===-1){x.cust_stream+=' -g 1'}
+        	if(x.stream_quality)x.stream_quality=' -crf '+x.stream_quality;
+        	x.pipe=x.preset_stream+x.stream_quality+x.stream_acodec+x.stream_vcodec+x.stream_fps+' -f hls -s '+x.ratio+x.stream_video_filters+x.cust_stream+' -hls_time '+x.hls_time+' -hls_list_size '+x.hls_list_size+' -start_number 0 -hls_allow_cache 0 -hls_flags +delete_segments+omit_endlist '+e.sdir+'s.m3u8';
+	    }
         break;
         case'mjpeg':
             if(x.stream_quality)x.stream_quality=' -q:v '+x.stream_quality;
@@ -867,7 +884,7 @@ s.ffmpeg=function(e,x){
             if(e.mode=='record'){
                 x.record_string+=x.vcodec+x.framerate+x.acodec+x.record_dimensions+x.record_video_filters+' '+x.segment;
             }
-            x.tmp=x.loglevel+x.cust_input+' -i '+e.url+x.record_string+x.pipe;
+            x.tmp=x.loglevel+x.cust_input+x.hwaccel+' -i '+e.url+x.record_string+x.pipe;
         break;
         case'local':
             if(e.mode=='record'){
