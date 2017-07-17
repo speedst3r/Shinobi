@@ -381,6 +381,7 @@
    "libx264": "libx264",
    "libx265": "libx265",
    "copy": "copy",
+   "h264_vaapi": "H.264 VA-API (Intel HW Accel)",
    "No Audio": "No Audio",
    "aac": "aac",
    "ac3": "ac3",
