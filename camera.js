@@ -47,6 +47,17 @@ var events = require('events');
 var df = require('node-df');
 var Cam = require('onvif').Cam;
 var config = require('./conf.json');
+if(!config.language){
+    config.language='en_CA'
+}
+if(config.language.split('_')[0]==='he'){config.language=='ar'}
+try{
+    var lang = require('./languages/'+config.language+'.json');
+}catch(er){
+    console.error(er)
+    console.log('There was an error loading your language file.')
+    var lang = require('./languages/en_CA.json');
+}
 process.send = process.send || function () {};
 if(config.mail){
     var nodemailer = require('nodemailer').createTransport(config.mail);
@@ -2428,10 +2439,10 @@ s.superAuth=function(x,callback){
             req.found=1;
             if(x.users===true){
                 sql.query('SELECT * FROM Users WHERE details NOT LIKE ?',['%"sub"%'],function(err,r) {
-                    callback({$user:v,users:r,config:config})
+                    callback({$user:v,users:r,config:config,lang:lang})
                 })
             }else{
-                callback({$user:v,config:config})
+                callback({$user:v,config:config,lang:lang})
             }
         }
     })
@@ -2455,7 +2466,7 @@ app.get('/info', function (req,res){
 });
 //main page
 app.get('/', function (req,res){
-    res.render('index');
+    res.render('index',{lang:lang});
 });
 //update server
 app.get('/:auth/update/:key', function (req,res){
@@ -2565,11 +2576,11 @@ app.post('/',function (req,res){
                     })
                 }else{
                     //not admin user
-                    req.renderFunction("home",{$user:req.resp,config:config});
+                    req.renderFunction("home",{$user:req.resp,config:config,lang:lang});
                 }
             break;
             default:
-                req.renderFunction("home",{$user:req.resp,config:config});
+                req.renderFunction("home",{$user:req.resp,config:config,lang:lang});
             break;
         }
     //    res.end();
@@ -2765,7 +2776,7 @@ app.get(['/:auth/embed/:ke/:id','/:auth/embed/:ke/:id/:addon'], function (req,re
         }
         if(s.group[req.params.ke]&&s.group[req.params.ke].mon[req.params.id]){
             if(s.group[req.params.ke].mon[req.params.id].started===1){
-                res.render("embed",{data:req.params,baseUrl:req.protocol+'://'+req.hostname,config:config,mon:CircularJSON.parse(CircularJSON.stringify(s.group[req.params.ke].mon_conf[req.params.id]))});
+                res.render("embed",{data:req.params,baseUrl:req.protocol+'://'+req.hostname,config:config,lang:lang,mon:CircularJSON.parse(CircularJSON.stringify(s.group[req.params.ke].mon_conf[req.params.id]))});
             }else{
                 res.end('Cannot watch a monitor that isn\'t running.')
             }
